@@ -2,6 +2,11 @@
 
 This document outlines the steps to build a robust data pipeline using a Bronze, Silver, and Gold layered architecture in Azure. The pipeline ingests raw data, transforms and enriches it, aggregates it for business use, and serves it for analytics, with automation and governance for reliability.
 
+
+![98D83121-EB14-4A37-8F93-5837A6ECBCE1_1_201_a](https://github.com/user-attachments/assets/6747fa1d-0a26-4473-a135-bd8e0fbd927f)
+
+
+
 ## Steps for Building the Pipeline
 
 ### 1. Data Ingestion (Raw Layer → Bronze)
