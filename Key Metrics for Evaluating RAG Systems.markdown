@@ -1,3 +1,98 @@
+# RAG Model Evaluation Techniques Simplified
+
+Retrieval-Augmented Generation (RAG) combines **retrieval** (finding relevant information) and **answer generation** (creating responses using a language model). Evaluating a RAG model involves checking how well both components work. Below, we explain evaluation techniques for the **retrieval component** and the **answer generation component** in simple terms.
+
+## 1. Retrieval Component Evaluation
+
+The retrieval component finds relevant documents or chunks from a database (like a vector store) to answer a query. We evaluate it to ensure it retrieves the *right* and *useful* information.
+
+### Why Evaluate Retrieval?
+If the retrieval step pulls irrelevant or incomplete documents, the answer generation will likely be wrong or unhelpful.
+
+### Key Evaluation Metrics
+
+#### a. Precision
+- **What it means**: Measures how many of the retrieved documents are actually relevant to the query.
+- **Example**: If 8 out of 10 retrieved documents are useful for answering the query, precision is 80% (8/10).
+- **Why it matters**: High precision means fewer irrelevant documents, making the system more efficient.
+- **How to check**: Compare retrieved documents to a "gold standard" set of relevant documents (manually labeled or pre-defined).
+
+#### b. Recall
+- **What it means**: Measures how many of the *all possible* relevant documents were retrieved.
+- **Example**: If there are 20 relevant documents in the database and the system retrieves 15 of them, recall is 75% (15/20).
+- **Why it matters**: High recall means the system isn’t missing important information.
+- **How to check**: Use a dataset with known relevant documents and check how many were found.
+
+#### c. Mean Reciprocal Rank (MRR)
+- **What it means**: Checks how high the *first* relevant document appears in the retrieved list.
+- **Example**: If the first relevant document is ranked 2nd, the reciprocal rank is 1/2 = 0.5. Average this across queries for MRR.
+- **Why it matters**: Users want relevant documents at the top, not buried in the list.
+- **How to check**: Rank retrieved documents and calculate the reciprocal of the rank of the first relevant one.
+
+#### d. Normalized Discounted Cumulative Gain (NDCG)
+- **What it means**: Evaluates the *quality* of the ranking, giving higher scores to relevant documents appearing earlier.
+- **Example**: If highly relevant documents are ranked at the top, NDCG is higher than if they appear lower.
+- **Why it matters**: Ensures the most important documents are prioritized.
+- **How to check**: Use a dataset with relevance scores (e.g., 1 for slightly relevant, 3 for very relevant) and compute NDCG.
+
+### How to Evaluate Retrieval
+1. **Create a Test Set**: Prepare a set of queries with known relevant documents (ground truth).
+2. **Run Retrieval**: Use your RAG system to retrieve documents for each query.
+3. **Compare**: Measure precision, recall, MRR, or NDCG by comparing retrieved documents to the ground truth.
+4. **Tools**: Libraries like `scikit-learn` or `rank-bm25` can help compute these metrics.
+
+### Example
+- Query: "What is the capital of France?"
+- Ground truth: Documents mentioning "Paris is the capital of France."
+- Retrieved documents: 5 documents, 3 are relevant.
+- Precision: 3/5 = 60%.
+- Recall: If there are 4 relevant documents total, recall is 3/4 = 75%.
+- MRR: If the first relevant document is 1st, MRR = 1/1 = 1.0.
+
+## 2. Answer Generation Component Evaluation
+
+The answer generation component uses the retrieved documents to produce a final answer via a language model (e.g., GPT-4). We evaluate it to check if the answers are accurate, clear, and helpful.
+
+### Why Evaluate Answer Generation?
+Even if retrieval is perfect, the language model might misinterpret the documents, hallucinate (make up information), or produce unclear answers.
+
+### Key Evaluation Metrics
+
+#### a. Faithfulness
+- **What it means**: Checks if the answer sticks to the information in the retrieved documents.
+- **Example**: If the document says "Paris is the capital," but the answer says "Florida," it’s not faithful.
+- **Why it matters**: Prevents the model from making up facts not in the retrieved data.
+- **How to check**: Manually or automatically compare the answer to the retrieved documents. Tools like LangChain’s `FaithfulnessEvaluator` can help.
+
+#### b. Answer Relevance
+- **What it means**: Measures if the answer directly addresses the user’s query.
+- **Example**: For "What is the capital of France?" an answer like "Paris" is relevant, but "France has nice food" is not.
+- **Why it matters**: Ensures the answer is useful and on-topic.
+- **How to check**: Use human judgment or automated metrics like BLEU/ROUGE (comparing to ideal answers).
+
+#### c. Context Relevance
+- **What it means**: Checks if the retrieved documents provide enough context to answer the query fully.
+- **Example**: If the query is "Why is Paris the capital?" and the documents only say "Paris is the capital," the context is insufficient.
+- **Why it matters**: Ensures the retrieved documents are useful for generating good answers.
+- **How to check**: Evaluate if the documents contain all necessary information for the query.
+
+#### d. Completeness
+- **What it means**: Measures if the answer covers all aspects of the query.
+- **Example**: For "What is the capital and largest city of France?" the answer should mention both Paris (capital) and Paris (largest city).
+- **Why it matters**: Ensures no part of the query is ignored.
+- **How to check**: Compare the answer to a reference answer that covers all query aspects.
+
+#### e. Human Evaluation
+- **What it means**: Humans rate answers for quality, clarity, and correctness.
+- **Example**: Rate an answer from 1-5 based on how clear and accurate it is.
+- **Why it matters**: Captures nuances that automated metrics might miss.
+- **How to check**: Use a small group of evaluators to score answers.
+
+
+
+
+
+
 # Key Metrics for Evaluating Retrieval-Augmented Generation (RAG) Systems
 
 This guide explains critical metrics for evaluating **Retrieval-Augmented Generation (RAG)** systems, including **Faithfulness**, **Answer Relevancy**, **Context Precision**, **Context Recall**, and additional metrics such as **Perplexity**, **BLEU Score**, **ROUGE Score**, **BERTScore**, **Hallucination Detection**, **Bias Assessment**, **Safety**, and **Robustness**. Each metric is described in detail, including its definition, importance, and practical examples, with considerations for tokenization where relevant. The content is structured for clarity and accessibility, suitable for beginners and aligned with Azure AI concepts.
