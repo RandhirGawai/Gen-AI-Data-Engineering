@@ -1,11 +1,13 @@
-# LangChain Document Processing and RAG Pipeline Guide
+# Comprehensive LangChain Document Processing and RAG Pipeline Guide
 
-This guide covers key LangChain components for loading, splitting, embedding, storing, and retrieving documents, along with advanced techniques like LCEL, LangServe, LangGraph, and agentic RAG workflows.
+This guide provides a complete overview of LangChain components for document loading, text splitting, embedding generation, vector storage, retrieval, and advanced techniques like LCEL, LangServe, LangGraph, and agentic RAG workflows. It includes all provided examples, explanations, and concepts for building a unified ingestion pipeline.
 
 ## 1. Document Loaders
 
-### Text Loader
-For loading plain `.txt` files from local storage.
+Document loaders fetch and parse data from various sources into LangChain's document format.
+
+### 1.1 Text Loader
+Loads plain `.txt` files from local storage.
 
 ```python
 from langchain_community.document_loaders import TextLoader
@@ -15,8 +17,8 @@ documents = loader.load()
 print(documents[0].page_content)  # View file content
 ```
 
-### Web-Based Loader
-For scraping and loading content from web pages.
+### 1.2 Web-Based Loader
+Scrapes and loads content from web pages.
 
 ```python
 from langchain_community.document_loaders import WebBaseLoader
@@ -27,8 +29,8 @@ for doc in documents:
     print(doc.metadata, doc.page_content[:200])
 ```
 
-### PDF Loader
-For extracting text from PDF files.
+### 1.3 PDF Loader
+Extracts text from PDF files, treating each page as a separate document.
 
 ```python
 from langchain_community.document_loaders import PyPDFLoader
@@ -38,8 +40,8 @@ documents = loader.load()
 print(len(documents))  # Number of pages as separate docs
 ```
 
-### S3 Directory Loader
-For loading files from an AWS S3 bucket.
+### 1.4 S3 Directory Loader
+Loads files from an AWS S3 bucket.
 
 ```python
 from langchain_community.document_loaders import S3DirectoryLoader
@@ -53,8 +55,8 @@ loader = S3DirectoryLoader(
 documents = loader.load()
 ```
 
-### Azure Blob Storage Loader
-For loading files from an Azure Blob Storage container.
+### 1.5 Azure Blob Storage Loader
+Loads files from an Azure Blob Storage container.
 
 ```python
 from langchain_community.document_loaders import AzureBlobStorageFileLoader
@@ -68,14 +70,18 @@ documents = loader.load()
 ```
 
 **Tips for All Loaders**:
-- Split text into chunks using `RecursiveCharacterTextSplitter`.
-- Normalize metadata (e.g., source, page number).
-- Use async loaders (`.aload()`) for large-scale ingestion.
+- After loading, split text into chunks using `RecursiveCharacterTextSplitter`.
+- Normalize metadata (e.g., source, page number) for consistency.
+- Use async loaders (`.aload()`) for large-scale ingestion to improve performance.
+
+**Unified Pipeline Option**: A single pipeline can load from TXT, Web, PDF, S3, or Azure Blob, automatically select the right splitter, and store into a vector database for retrieval-augmented generation (RAG).
 
 ## 2. Text Splitters
 
-### RecursiveCharacterTextSplitter
-Splits text into chunks without breaking words or sentences unnaturally.
+Text splitters break large documents into smaller chunks for embedding and retrieval.
+
+### 2.1 RecursiveCharacterTextSplitter
+Splits text without breaking words or sentences, using multiple separators in priority order (paragraph → sentence → word → character).
 
 ```python
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -89,10 +95,13 @@ docs = text_splitter.split_text("Your large text here...")
 print(docs)
 ```
 
-**When to use**: General text (PDF, TXT, scraped content). Preserves semantic meaning.
+**When to use**:
+- ✅ General text (PDF, TXT, scraped content).
+- ✅ Preserves semantic meaning by avoiding mid-word breaks.
+- Best for most document types.
 
-### CharacterTextSplitter
-Splits text purely by character count, ignoring sentence boundaries.
+### 2.2 CharacterTextSplitter
+Splits text purely by character count, ignoring sentence or paragraph boundaries.
 
 ```python
 from langchain_text_splitters import CharacterTextSplitter
@@ -106,10 +115,12 @@ docs = text_splitter.split_text("Your large text here...")
 print(docs)
 ```
 
-**When to use**: Structured text where splitting location doesn’t matter. Not ideal for semantic search.
+**When to use**:
+- ✅ Structured or semi-structured text where splitting location doesn’t matter.
+- ❌ Not ideal for conversational or semantic search due to potential mid-sentence breaks.
 
-### HTMLHeaderTextSplitter
-Splits HTML based on header tags (`<h1>`, `<h2>`, etc.).
+### 2.3 HTMLHeaderTextSplitter
+Parses HTML and splits based on header tags (`<h1>`, `<h2>`, etc.), keeping sections under their respective headers.
 
 ```python
 from langchain_text_splitters import HTMLHeaderTextSplitter
@@ -120,15 +131,20 @@ html_text = """
 <h2>Background</h2>
 <p>Details about background.</p>
 """
-headers_to_split_on = [("h1", "Header 1"), ("h2", "Header 2")]
+headers_to_split_on = [
+    ("h1", "Header 1"),
+    ("h2", "Header 2")
+]
 splitter = HTMLHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
 docs = splitter.split_text(html_text)
 print(docs)
 ```
 
-**When to use**: Web pages, blogs, or technical docs with HTML headings.
+**When to use**:
+- ✅ Web pages, blog posts, technical documentation with HTML headings.
+- ✅ Keeps context grouped by topic.
 
-### RecursiveJsonSplitter
+### 2.4 RecursiveJsonSplitter
 Splits nested JSON into smaller pieces while preserving structure.
 
 ```python
@@ -149,7 +165,9 @@ docs = splitter.split_json(json_data)
 print(docs)
 ```
 
-**When to use**: Large JSON logs, configs, or API responses.
+**When to use**:
+- ✅ Large JSON logs, configs, or API responses.
+- ✅ Keeps related key-value pairs together.
 
 **Summary Table**:
 
@@ -160,10 +178,14 @@ print(docs)
 | HTMLHeaderTextSplitter       | HTML docs                   | ✅                 | ✅               |
 | RecursiveJsonSplitter        | JSON data                   | ✅                 | ✅               |
 
+**Unified Pipeline Note**: A single ingestion pipeline can automatically choose the right splitter based on file type (e.g., `HTMLHeaderTextSplitter` for HTML, `RecursiveJsonSplitter` for JSON).
+
 ## 3. Embeddings
 
-### OpenAI Embeddings
-Hosted API, high-quality for semantic search, clustering, and RAG.
+Embeddings convert text into numerical vectors for similarity search and RAG.
+
+### 3.1 OpenAI Embeddings
+Hosted API, optimized for semantic search, clustering, and RAG. Common models: `text-embedding-3-small`, `text-embedding-3-large`.
 
 ```python
 from langchain_openai import OpenAIEmbeddings
@@ -173,11 +195,17 @@ vector = embeddings.embed_query("This is an example sentence")
 print(len(vector))  # embedding length
 ```
 
-**Pros**: High accuracy, well-maintained.  
-**Cons**: Requires API key, internet, paid after free credits.
+**Pros**:
+- ✅ High accuracy.
+- ✅ Well-maintained.
+**Cons**:
+- ❌ Requires API key and internet.
+- ❌ Paid after free credits.
 
-### Hugging Face Embeddings
-Open-source, many models available (e.g., `sentence-transformers/all-MiniLM-L6-v2`).
+### 3.2 Hugging Face Embeddings
+Open-source, free, with many models (e.g., `sentence-transformers/all-MiniLM-L6-v2`).
+
+**Local Example**:
 
 ```python
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -187,11 +215,27 @@ vector = embeddings.embed_query("This is an example sentence")
 print(len(vector))
 ```
 
-**Pros**: Free, runs locally, many pre-trained models.  
-**Cons**: Larger models can be slow without GPU.
+**Hugging Face Inference API Example**:
 
-### LLaMA-based Embeddings
-Use fine-tuned LLaMA-based models (e.g., BGE, Instructor) via Ollama.
+```python
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+
+embeddings = HuggingFaceInferenceAPIEmbeddings(
+    api_key="YOUR_HF_API_KEY",
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
+vector = embeddings.embed_query("This is an example sentence")
+print(len(vector))
+```
+
+**Pros**:
+- ✅ Free, runs locally.
+- ✅ Many pre-trained models.
+**Cons**:
+- ❌ Larger models can be slow without GPU.
+
+### 3.3 LLaMA-based Embeddings
+Uses fine-tuned LLaMA-based models (e.g., BGE, Instructor) via Ollama.
 
 ```python
 from langchain_community.embeddings import OllamaEmbeddings
@@ -201,8 +245,15 @@ vector = embeddings.embed_query("This is an example sentence")
 print(len(vector))
 ```
 
-**Pros**: Runs offline, customizable with fine-tuning.  
-**Cons**: Needs strong hardware for large models.
+**Example Models**:
+- `BAAI/bge-large-en-v1.5`: High quality.
+- `hkunlp/instructor-xl`: Task-aware embeddings.
+
+**Pros**:
+- ✅ Runs fully offline.
+- ✅ Customizable with fine-tuning.
+**Cons**:
+- ❌ Needs strong hardware for big models.
 
 **Comparison Table**:
 
@@ -214,54 +265,59 @@ print(len(vector))
 
 ## 4. Vector Databases and Retrieval
 
-### Vector Databases
-Store embeddings for fast similarity search.
+Vector databases store embeddings and enable fast similarity searches.
 
-- **Chroma**: Open-source, local-first, good for prototyping.
+### 4.1 Vector Databases
+
+- **Chroma**: Open-source, local-first, ideal for prototyping RAG pipelines.
   ```python
   from langchain_chroma import Chroma
   db = Chroma(collection_name="docs")
   ```
 
-- **FAISS**: Fast, in-memory or disk, scales to millions of vectors.
+- **FAISS**: Fast, in-memory or disk-based, scales to millions of vectors.
   ```python
   from langchain_community.vectorstores import FAISS
   db = FAISS.from_texts(["doc1", "doc2"], embedding=embeddings)
   ```
 
-### Retrieval Techniques
-- **Similarity Search**: Finds closest vectors (cosine, dot product, L2).
+- **Hugging Face Hub Datasets**: Stores precomputed embeddings, good for sharing public datasets (not live search).
+
+### 4.2 Retrieval Techniques
+
+- **Similarity Search**: Finds vectors closest to the query vector (cosine, dot product, L2).
   ```python
   results = db.similarity_search("query", k=5)
   ```
 
-- **Max Marginal Relevance (MMR)**: Balances relevance and diversity.
+- **Max Marginal Relevance (MMR)**: Balances relevance and diversity to avoid redundant results.
   ```python
   results = db.max_marginal_relevance_search("query", k=5)
   ```
 
-- **Filter-based Search**: Adds metadata filtering.
+- **Filter-based Search**: Filters results by metadata (e.g., document type, date).
   ```python
   results = db.similarity_search("query", filter={"type": "pdf"})
   ```
 
 **Why Retrieval?**  
-- Pre-processes queries, post-processes results (re-ranking, filtering).  
-- Integrates into LLM chains for contextual answering.
+- Pre-processes queries (rephrasing, embedding creation).  
+- Post-processes results (re-ranking, filtering, metadata enrichment).  
+- Integrates with LLM chains for contextual answering.
 
 **L2 Score in Similarity Search**  
 - L2 = Euclidean distance: `√∑(xi - yi)²`.  
 - Lower L2 = more similar.  
-- Used in FAISS for speed and simplicity in Euclidean space.
+- Used in FAISS for speed and simplicity in Euclidean space, especially when vectors are not normalized.
 
 **all_dangerous_deserialization**  
-- Allows loading pickled objects (e.g., FAISS index configs).  
-- **Warning**: Only enable for trusted sources due to security risks.
+- Allows loading arbitrary pickled Python objects (e.g., FAISS index configs).  
+- **Warning**: Dangerous due to potential execution of arbitrary code. Only enable for trusted sources. Prefer JSON for metadata.
 
 ## 5. LangChain Components
 
-### LangChain OpenAI
-Integrates OpenAI models into LangChain pipelines.
+### 5.1 LangChain OpenAI
+Integration layer for OpenAI APIs (chat models, embeddings). Handles API authentication, prompt formatting, token counting, and retry logic.
 
 ```python
 from langchain_openai import ChatOpenAI
@@ -271,8 +327,8 @@ response = llm.invoke("Write a haiku about the ocean")
 print(response.content)
 ```
 
-### LangChain Tracking
-Tracks runs via LangSmith for debugging and monitoring.
+### 5.2 LangChain Tracking
+Tracks prompts, inputs, outputs, errors, and timing via LangSmith for debugging and monitoring.
 
 ```python
 import os
@@ -280,15 +336,15 @@ os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = "your_langsmith_api_key"
 ```
 
-### LangChain Project
-Groups related runs/experiments in LangSmith.
+### 5.3 LangChain Project
+Groups related runs, datasets, and experiments in LangSmith for a specific application.
 
 ```python
 os.environ["LANGCHAIN_PROJECT"] = "financial-chatbot"
 ```
 
-### ChatPromptTemplate
-Creates structured, reusable prompts.
+### 5.4 ChatPromptTemplate
+Creates structured, reusable prompts with placeholders for dynamic values.
 
 ```python
 from langchain.prompts import ChatPromptTemplate
@@ -300,8 +356,8 @@ message = prompt.format_messages(question="What is the capital of France?")
 print(message)
 ```
 
-### Output Parser
-Converts raw LLM output into structured formats (e.g., JSON).
+### 5.5 Output Parser
+Converts raw LLM output into structured formats (e.g., JSON, lists, Python objects).
 
 ```python
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
@@ -315,17 +371,30 @@ prompt_text = parser.get_format_instructions()
 print(prompt_text)
 ```
 
+**Summary Table**:
+
+| Term                  | Purpose                                              |
+|-----------------------|-----------------------------------------------------|
+| LangChain OpenAI      | Integrates OpenAI models into LangChain pipelines    |
+| LangChain Tracking    | Logs & monitors chain executions (via LangSmith)    |
+| LangChain Project     | Groups related runs/experiments into one workspace   |
+| ChatPromptTemplate    | Creates dynamic, reusable prompts for chat models    |
+| Output Parser         | Converts messy LLM output into structured data       |
+
 ## 6. Document Processing Chains
 
-### create_stuff_document_chain
-Combines retrieved documents into a single prompt for LLM.
+### 6.1 create_stuff_document_chain
+Combines multiple retrieved documents into a single prompt for the LLM.
 
 ```python
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
+# Step 1: Define LLM
 llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+# Step 2: Define Prompt
 prompt = ChatPromptTemplate.from_template("""
 You are a helpful assistant. 
 Answer the question based on the following documents:
@@ -333,7 +402,11 @@ Answer the question based on the following documents:
 
 Question: {question}
 """)
+
+# Step 3: Create Stuff Chain
 chain = create_stuff_documents_chain(llm, prompt)
+
+# Step 4: Run the chain
 docs = [
     {"page_content": "Paris is the capital of France."},
     {"page_content": "It is known for the Eiffel Tower."}
@@ -342,12 +415,17 @@ response = chain.invoke({"question": "What is the capital of France?", "context"
 print(response)
 ```
 
-**Pros**: Simple, works for small contexts.  
-**Cons**: Token overflow for large documents.
+**Why “Stuff” Approach?**  
+- **Pros**: Simple, direct—combines all context into one prompt.  
+- **Cons**: Can fail with large documents due to token limits; no ranking or summarization.  
+
+**Other Strategies**:
+- **Map-Reduce**: Summarize each document, then summarize summaries.
+- **Refine**: Generate an answer from the first document, iteratively refine with others.
 
 ## 7. LangChain Expression Language (LCEL)
 
-LCEL composes LangChain components into pipelines.
+LCEL is a declarative way to compose LangChain components (LLMs, prompts, retrievers, parsers) into pipelines.
 
 ```python
 from langchain_openai import ChatOpenAI
@@ -363,12 +441,39 @@ print(result)  # Bonjour le monde
 ```
 
 **Why LCEL?**  
-- Clean, functional syntax.  
-- Supports `.invoke()`, `.batch()`, `.stream()`.
+- Clean, functional-style syntax.  
+- Easier debugging and testing.  
+- Supports `.invoke()`, `.batch()`, `.stream()` for flexible execution.
+
+**LangChain Core**  
+- Minimal, dependency-light foundation of LangChain.  
+- Includes base classes for LLMs, prompts, document loaders, output parsers, and tracing.  
+- **Why use it?**: Lightweight, faster imports, easier to build custom components.
+
+**Why OutputParser?**  
+- Converts messy LLM output into structured formats (e.g., JSON, Pydantic models).  
+- Prevents formatting hallucinations and ensures machine-readable outputs.
+
+```python
+from langchain.output_parsers import ResponseSchema, StructuredOutputParser
+
+schemas = [
+    ResponseSchema(name="answer", description="The main answer"),
+    ResponseSchema(name="source", description="Where the answer came from")
+]
+parser = StructuredOutputParser.from_response_schemas(schemas)
+format_instructions = parser.get_format_instructions()
+prompt_text = f"""
+Answer the question and respond in the format below:
+{format_instructions}
+
+Question: What is the capital of France?
+"""
+```
 
 ## 8. LangServe
 
-Deploys LangChain pipelines as APIs via FastAPI.
+LangServe deploys LangChain pipelines as APIs using FastAPI.
 
 ```python
 from fastapi import FastAPI
@@ -383,12 +488,36 @@ chain = prompt | llm
 add_routes(app, chain, path="/joke")
 ```
 
-**Usage**: POST to `/joke` with `{"topic": "cats"}`.
+**Usage**: POST to `/joke` with `{"topic": "cats"}`.  
+**Benefits**:  
+- Auto-generated API docs (Swagger/OpenAPI).  
+- Supports streaming, batching, and authentication.  
+- Makes chains callable by external apps (web, mobile, CLI).
+
+**Chains as API**: Exposes LangChain chains as endpoints for integration with frontends (React, Streamlit) or other systems.
+
+**trim_messages**  
+- Shortens conversation history to fit LLM token limits.  
+- Can remove oldest messages, truncate long messages, or preserve system prompts.
+
+```python
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain.chains import trim_messages
+
+messages = [
+    HumanMessage(content="Hello"),
+    AIMessage(content="Hi there!"),
+    HumanMessage(content="Tell me a long story about AI...")
+]
+trimmed = trim_messages(messages, max_tokens=100, strategy="last")
+```
 
 ## 9. LangGraph Concepts
 
-### Reducer
-Merges state updates from multiple nodes (e.g., concatenate lists).
+LangGraph is a framework for building dynamic, stateful workflows with nodes and edges.
+
+### 9.1 Reducer
+Merges state updates from multiple nodes using custom logic (e.g., list concatenation).
 
 ```python
 from typing_extensions import TypedDict, Annotated
@@ -399,8 +528,19 @@ class State(TypedDict):
     bar: Annotated[list[str], operator.add]
 ```
 
-### Stream
-Enables real-time, token-level outputs or intermediate steps.
+**Example**: If one node updates `bar` with `["A"]` and another with `["B"]`, the reducer combines them into `["A", "B"]`.
+
+### 9.2 Annotation Function
+Attaches a reducer to a state key using `Annotated`.
+
+```python
+messages: Annotated[list[AnyMessage], add_messages]
+```
+
+**Purpose**: `add_messages` reducer appends or updates messages intelligently, handling IDs and deserialization.
+
+### 9.3 Stream
+Enables real-time, token-level outputs or intermediate step visualization.
 
 ```python
 async for chunk in app.stream(input_data):
@@ -408,10 +548,47 @@ async for chunk in app.stream(input_data):
     app.update({"messages": chunk["messages"]})
 ```
 
-### Dataclasses
-Define graph state schema for type safety.
+**Benefits**: Real-time reasoning, progress tracking, human intervention.
 
-### Router
+### 9.4 Dataclasses
+Define graph state schema for type safety (alternative to `TypedDict` or Pydantic models).
+
+### 9.5 ChatMsg (Messages)
+Stores conversation history as `HumanMessage`, `AIMessage`, or `AnyMessage`, managed by `add_messages` reducer.
+
+### 9.6 LLM in Graph Nodes
+Integrates LLMs into nodes to process state and produce outputs.
+
+```python
+from langchain_openai import ChatOpenAI
+from langgraph.graph import StateGraph
+
+def ask_model(state: State):
+    llm = ChatOpenAI(model="gpt-4")
+    response = llm.invoke({"inputs": state["messages"]})
+    return {"messages": [AIMessage(content=response.content)]}
+```
+
+### 9.7 Tool Binding
+Binds external functions as tools for LLMs to call.
+
+```python
+from langchain.tools import tool
+
+@tool
+def get_weather(city: str):
+    return f"The weather in {city} is sunny."
+agent = agent.bind_tools([get_weather])
+```
+
+### 9.8 Tool Calls from LLM
+LLM decides to call tools, and nodes handle execution and state updates.
+
+**Example Workflow**:
+- LLM outputs intent (e.g., call `get_weather` with `city="Delhi"`).
+- Node invokes tool and updates state with results.
+
+### 9.9 Router
 Directs flow to nodes based on conditions.
 
 ```python
@@ -426,31 +603,104 @@ def route(state):
 graph.add_router("router_node", route)
 ```
 
-### Tool Binding
-Connects external functions to agents.
+### 9.10 Conditional Edges
+Routes from one node to another based on conditions.
 
 ```python
-from langchain.tools import tool
-
-@tool
-def get_weather(city: str):
-    return f"The weather in {city} is sunny."
-agent = agent.bind_tools([get_weather])
+graph.add_conditional_edges(
+    "router_node",
+    condition=lambda state: state["intent"] == "math",
+    target="math_node"
+)
 ```
 
-### Agent Memory
-Stores conversation history or intermediate results.
+### 9.11 Agent Architecture
+- **ReAct**: Reason → Act → Observe → Repeat.
+  - Example: Reason about query, call tool (e.g., `get_weather`), observe result, answer.
+- **Plan-and-Execute**: LLM plans steps, then executes.
+- **Self-Ask with Search**: Agent clarifies questions before acting.
+- **Tool-Calling Agents**: LLM outputs structured JSON for tool calls.
 
-## 10. Advanced RAG Techniques
+### 9.12 Agent Memory
+Stores context or intermediate results.
+- **ConversationBufferMemory**: Raw chat history.
+- **ConversationSummaryMemory**: Summarized history to save tokens.
+- **VectorStoreRetrieverMemory**: Stores/retrieves facts via embeddings.
 
-### Agentic RAG
-Agent dynamically decides when/how to retrieve.
+**Example**: Remembers “flight to New York” when user later says “Make it business class.”
 
-### Corrective RAG
-Model self-reflects and grades its answers, re-retrieves if needed.
+### 9.13 astream
+Asynchronous streaming for non-blocking, real-time outputs.
 
-### Adaptive RAG
-Adjusts retrieval strategy based on query complexity.
+```python
+async for event in agent.astream({"query": "What's the weather?"}):
+    print(event)
+```
+
+## 10. Advanced Workflow Techniques
+
+### 10.1 Prompt Chaining
+Breaks complex tasks into sequential prompts (Generate → Improve → Polish).
+
+**Example Flow**:
+- Generate: Raw draft (e.g., blog).
+- Improve: Refine style, grammar, facts.
+- Polish: Ensure tone, conciseness, formatting.
+
+**Purpose**: Improves quality, reduces hallucinations.
+
+### 10.2 Parallelization
+Runs multiple chains/nodes concurrently for speed.
+
+**Example**: Embed documents, call APIs, or run graph branches in parallel.
+
+### 10.3 Routing in LangGraph
+Directs flow dynamically based on conditions (e.g., math query → calculator node).
+
+### 10.4 Orchestrator Workflow
+Manages entire conversation flow:
+- Decides which nodes/tools run.
+- Handles branching and parallel execution.
+- Collects results.
+
+### 10.5 Send API
+Passes messages/data between nodes in dynamic, asynchronous workflows.
+
+```python
+await graph.send("node_name", input_data)
+```
+
+### 10.6 Evaluator / Optimizer
+- **Evaluator**: Measures performance (e.g., accuracy, BLEU score).
+- **Optimizer**: Adjusts prompts, retrieval, or LLM settings based on feedback.
+
+**Example**: Evaluate answer correctness, adjust retrieval strategy if score is low.
+
+## 11. Advanced RAG Techniques
+
+### 11.1 Agentic RAG
+Combines RAG with agent reasoning:
+- Dynamically decides when/what to retrieve.
+- Supports multi-step retrieval and reasoning.
+
+**Use Case**: Customer support bots reasoning over multiple documents.
+
+### 11.2 Corrective RAG
+Model self-reflects and grades answers:
+- Critiques for factual correctness or missing context.
+- Re-retrieves or regenerates if score is low.
+
+**Example**: Secondary prompt grades answer, triggers re-retrieval if needed.
+
+### 11.3 Adaptive RAG
+Adjusts retrieval strategy based on query complexity:
+- Simple queries: Fewer documents, faster response.
+- Complex queries: More retrieval steps, multi-hop retrieval.
+
+**Methods**:
+- Adaptive `k`-value: Retrieve more docs for vague queries.
+- Adaptive reranking: Use stronger reranker for complex cases.
+- Query reformulation: Rewrite query if retrieval fails.
 
 **Summary Table**:
 
@@ -460,4 +710,15 @@ Adjusts retrieval strategy based on query complexity.
 | Corrective RAG  | Self-reflection & grading           | Reduce hallucination         | Validate generated answers   |
 | Adaptive RAG    | Adjust retrieval dynamically        | Balance accuracy vs speed    | Adjust docs per query        |
 
-This unified pipeline can load from TXT, PDF, HTML, JSON, S3, or Azure Blob, automatically select the appropriate splitter, generate embeddings, store in a vector database, and support advanced RAG workflows.
+## 12. Unified Ingestion Pipeline
+
+A production-ready pipeline can:
+- Load from TXT, PDF, HTML, JSON, S3, Azure Blob.
+- Automatically select the appropriate splitter (`RecursiveCharacterTextSplitter` for text/PDF, `HTMLHeaderTextSplitter` for HTML, etc.).
+- Generate embeddings using OpenAI, Hugging Face, or LLaMA-based models.
+- Store embeddings in a vector database (Chroma, FAISS).
+- Support retrieval with similarity search, MMR, or filter-based methods.
+- Integrate with LCEL for chaining, LangServe for API deployment, and LangGraph for dynamic workflows.
+- Enable advanced RAG (agentic, corrective, adaptive) for robust question-answering.
+
+This pipeline ensures flexibility, scalability, and production-readiness for RAG applications.
