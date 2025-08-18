@@ -24,6 +24,9 @@ LlamaIndex is a framework that connects Large Language Models (LLMs) to your pri
   - Interfaces for users.
   - Chatbots, QA systems, multi-doc exploration, agents that call tools.
 
+<img width="1024" height="1536" alt="2049A32E-4499-4F36-A6EE-9C7487DEBDB6" src="https://github.com/user-attachments/assets/19489558-651e-4a79-b88e-9c3bea4b9bf9" />
+
+
 ### Conceptual Flow (Text Diagram)
 ```
 [User Query]
